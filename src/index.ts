@@ -8,6 +8,8 @@ import itemRoutes from "./routes/itemRoutes";
 import orderRoutes from "./routes/orderRoutes";
 import adminOrderRoutes from "./routes/adminOrderRoutes";
 import adminMenuRoutes from "./routes/adminMenuRoutes";
+import adminUserRoutes from "./routes/adminUserRoutes";
+import reviewRoutes from "./routes/reviewRoutes";
 
 dotenv.config();
 
@@ -24,6 +26,9 @@ app.use("/api/items", itemRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/admin/orders", adminOrderRoutes);
 app.use("/api/admin/menu", adminMenuRoutes);
+app.use("/api/admin/users", adminUserRoutes);
+
+app.use("/api/reviews", reviewRoutes);
 
 // Default route
 app.get("/", (req: Request, res: Response) => {

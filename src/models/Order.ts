@@ -40,3 +40,14 @@ const orderSchema = new Schema<IOrder>(
 );
 
 export const Order = mongoose.model<IOrder>("Order", orderSchema);
+
+// Client (browser/mobile app)
+//         |
+//         v
+// Controller (your functions like getAllOrders, updateOrderStatus)
+//         |
+//         v
+// Model (Order) <-- Mongoose provides schema + methods
+//         |
+//         v
+// MongoDB Database (stores the actual data)
