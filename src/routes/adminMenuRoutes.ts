@@ -2,7 +2,8 @@ import { Router } from "express";
 import {
   saveItem,
   viewAllItems,
-  deleteItem
+  deleteItem,
+  updateItem
 } from "../controllers/adminMenuController";
 import { protect } from "../middleware/authMiddleware";
 import { authorize } from "../middleware/authorize";
@@ -17,5 +18,6 @@ router.use(authorize("admin"));
 router.get("/", viewAllItems);
 router.post("/save", upload.single("image"), saveItem);
 router.delete("/:id", deleteItem);
+router.put("/:id", upload.single("image"), updateItem);
 
 export default router;
