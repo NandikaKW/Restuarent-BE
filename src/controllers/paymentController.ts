@@ -1,124 +1,209 @@
-// controllers/paymentController.ts
 import { Request, Response } from "express";
 import { Payment } from "../models/Payment";
 import { Order } from "../models/Order";
+import { User } from "../models/User";
 
-// controllers/paymentController.ts - Update the initiatePayment function
-export const initiatePayment = async (req: Request, res: Response) => {
+
+export const createPayment = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user.id;
-    const { orderId } = req.body;
+    const user = (req as any).user;
+    const { orderId, paymentMethod, cardDetails } = req.body;
 
+    // Find the order
     const order = await Order.findById(orderId);
-    if (!order) return res.status(404).json({ message: "Order not found" });
-
-    // Check if order is already paid
-    if (order.status !== 'pending') {
-      return res.status(400).json({ 
-        message: `Order is already ${order.status}` 
-      });
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
     }
 
-    // Check if payment already exists for this order
-    const existingPayment = await Payment.findOne({ orderId, status: 'pending' });
+    // Check if order belongs to user
+    if (order.userId.toString() !== user.id) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    // Check if payment already exists
+    const existingPayment = await Payment.findOne({ orderId });
     if (existingPayment) {
-      return res.status(200).json({
-        message: "Payment already initiated",
-        paymentId: existingPayment._id,
-        amount: existingPayment.amount,
-        paymentUrl: `/payment/${existingPayment._id}` 
-      });
+      return res.status(400).json({ message: "Payment already exists for this order" });
     }
 
-    // Create a new payment
-    const payment = await Payment.create({
-      userId,
+    // Create payment record with pending status for all methods
+    const payment = new Payment({
+      userId: user.id,
       orderId,
       amount: order.totalPrice,
-      status: "pending"
+      paymentMethod,
+      cardDetails: paymentMethod === 'card' ? cardDetails : undefined,
+      status: 'pending' // Always pending initially
     });
+
+    await payment.save();
+
+    // Link payment to order immediately
+    order.paymentId = payment._id;
+    await order.save();
+
+    // // Simulate payment processing for demo
+    // // In real implementation, this would be handled by payment gateway callback
+    // setTimeout(async () => {
+    //   if (paymentMethod === 'card') {
+    //     // Simulate card payment success after 2 seconds
+    //     payment.status = 'success';
+    //     payment.paymentDate = new Date();
+    //     await payment.save();
+        
+    //     // Order status remains 'pending' until admin changes it
+    //   } else {
+    //     // For other methods, status remains pending
+    //     // Admin will update status manually
+    //   }
+    // }, 2000);
 
     res.status(201).json({
       message: "Payment initiated successfully",
-      paymentId: payment._id.toString(),  // Ensure it's a string
-      amount: payment.amount,
-      paymentUrl: `/payment/${payment._id}`  // Return relative path only
+      payment: {
+        id: payment._id,
+        orderId: payment.orderId,
+        amount: payment.amount,
+        paymentMethod: payment.paymentMethod,
+        status: payment.status
+      }
     });
   } catch (error: any) {
-    console.error('Error initiating payment:', error);
-    res.status(500).json({ 
-      message: "Server error", 
-      error: error.message 
-    });
+    console.error("Payment creation error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-export const completePayment = async (req: Request, res: Response) => {
+// Get payment status
+export const getPaymentStatus = async (req: Request, res: Response) => {
   try {
+    const user = (req as any).user;
     const { paymentId } = req.params;
 
-    const payment = await Payment.findById(paymentId).populate("orderId");
-    if (!payment) return res.status(404).json({ message: "Payment not found" });
-
-    // Check if payment is already processed
-    if (payment.status !== 'pending') {
-      return res.status(400).json({ 
-        message: `Payment already ${payment.status}`,
-        paymentStatus: payment.status,
-        orderId: payment.orderId
-      });
+    const payment = await Payment.findById(paymentId);
+    if (!payment) {
+      return res.status(404).json({ message: "Payment not found" });
     }
 
-    // Simulate random success/failure
-    const isSuccess = Math.random() > 0.1; // 90% success rate
-
-    payment.status = isSuccess ? "success" : "failed";
-    await payment.save();
-
-    if (isSuccess) {
-      // Update order status to 'preparing' on successful payment
-      await Order.findByIdAndUpdate(payment.orderId, { 
-        status: 'preparing',
-        paymentId: payment._id
-      });
+    // Check if payment belongs to user or user is admin
+    if (payment.userId.toString() !== user.id && user.role !== 'admin') {
+      return res.status(403).json({ message: "Not authorized" });
     }
 
-    const order = await Order.findById(payment.orderId);
-
-    res.status(200).json({
-      message: isSuccess ? "Payment successful" : "Payment failed",
-      paymentStatus: payment.status,
+    res.json({
+      paymentId: payment._id,
       orderId: payment.orderId,
-      orderStatus: order?.status || 'pending'
+      amount: payment.amount,
+      status: payment.status,
+      paymentMethod: payment.paymentMethod,
+      paymentDate: payment.paymentDate
     });
   } catch (error: any) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
-export const getPaymentStatus = async (req: Request, res: Response) => {
+// Get user's payment history
+export const getPaymentHistory = async (req: Request, res: Response) => {
   try {
-    const { paymentId } = req.params;
-    const userId = (req as any).user.id;
+    const user = (req as any).user;
+    const payments = await Payment.find({ userId: user.id })
+      .select('-cardDetails.cvv -cardDetails.cardNumber')
+      .sort({ createdAt: -1 })
+      .populate('orderId', 'totalPrice status');
 
-    const payment = await Payment.findById(paymentId)
-      .populate('orderId')
-      .populate('userId');
+    res.json(payments);
+  } catch (error: any) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
 
-    if (!payment) return res.status(404).json({ message: "Payment not found" });
-
-    // Check if user is authorized to view this payment
-    if (payment.userId._id.toString() !== userId) {
-      return res.status(403).json({ message: "Not authorized to view this payment" });
+// ADMIN: Get all payments
+export const getAllPayments = async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    
+    // Check if user is admin
+    if (user.role !== 'admin') {
+      return res.status(403).json({ message: "Admin access required" });
     }
 
-    res.status(200).json({
-      paymentId: payment._id,
-      amount: payment.amount,
-      status: payment.status,
-      orderId: payment.orderId,
-      createdAt: payment.createdAt,
-      orderStatus: (payment.orderId as any).status
+    const payments = await Payment.find()
+      .select('-cardDetails.cvv -cardDetails.cardNumber')
+      .sort({ createdAt: -1 })
+      .populate('orderId', 'totalPrice status')
+      .populate('userId', 'firstName lastName email');
+
+    res.json(payments);
+  } catch (error: any) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// ADMIN: Update payment status
+export const updatePaymentStatus = async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const { paymentId } = req.params;
+    const { status } = req.body;
+
+    // Check if user is admin
+    if (user.role !== 'admin') {
+      return res.status(403).json({ message: "Admin access required" });
+    }
+
+    if (!['pending', 'success', 'failed'].includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    const payment = await Payment.findById(paymentId);
+    if (!payment) {
+      return res.status(404).json({ message: "Payment not found" });
+    }
+
+    payment.status = status;
+    if (status === 'success') {
+      payment.paymentDate = new Date();
+    }
+    await payment.save();
+
+    res.json({
+      message: "Payment status updated successfully",
+      payment: {
+        id: payment._id,
+        status: payment.status,
+        paymentDate: payment.paymentDate
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Complete payment (for demo)
+export const completePayment = async (req: Request, res: Response) => {
+  try {
+    const { paymentId } = req.params;
+    
+    const payment = await Payment.findById(paymentId);
+    if (!payment) {
+      return res.status(404).json({ message: "Payment not found" });
+    }
+
+    // Update payment status to success
+    payment.status = 'success';
+    payment.paymentDate = new Date();
+    await payment.save();
+
+    
+
+    res.json({
+      message: "Payment completed successfully",
+      payment: {
+        id: payment._id,
+        status: payment.status,
+        paymentDate: payment.paymentDate
+      }
     });
   } catch (error: any) {
     res.status(500).json({ message: "Server error", error: error.message });

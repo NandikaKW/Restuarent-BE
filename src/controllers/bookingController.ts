@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { TableBooking } from "../models/TableBooking";
 
-// CREATE BOOKING - Modified to use email for linking
+// CREATE BOOKING
 export const createBooking = async (req: Request, res: Response) => {
   const user = (req as any).user; // Get user from token if logged in
   const { name, email, phone, date, time, guests, message } = req.body;
@@ -48,7 +48,7 @@ export const createBooking = async (req: Request, res: Response) => {
   }
 };
 
-// GET USER BOOKINGS - Modified to use email
+// GET USER BOOKINGS 
 export const getMyBookings = async (req: Request, res: Response) => {
   const user = (req as any).user;
 

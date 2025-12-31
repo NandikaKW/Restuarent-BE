@@ -12,6 +12,7 @@ import adminUserRoutes from "./routes/adminUserRoutes";
 import reviewRoutes from "./routes/reviewRoutes";
 import paymentRoutes from "./routes/paymentRoutes";
 import bookingRoutes from "./routes/bookingRoutes";
+import orderStatusRoutes from "./routes/orderStatusRoutes";
 dotenv.config();
 
 const app: Application = express();
@@ -34,6 +35,9 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/payments", paymentRoutes);
 
 app.use("/api/bookings", bookingRoutes);
+
+app.use('/api/order-status', orderStatusRoutes);
+
 
 // Default route
 app.get("/", (req: Request, res: Response) => {

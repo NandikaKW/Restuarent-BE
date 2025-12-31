@@ -1,12 +1,17 @@
 import { Request, Response } from "express";
 import { Order } from "../models/Order";
 
-// Get all orders for admin
+// In your getAllOrders controller
 export const getAllOrders = async (req: Request, res: Response) => {
   try {
     const orders = await Order.find()
       .populate('userId', 'firstName lastName email')
+      .populate('paymentId', 'status paymentMethod amount paymentDate') // Add this line
       .sort({ createdAt: -1 });
+
+    // console.log("===== ADMIN ORDERS =====");
+    // console.log(JSON.stringify(orders, null, 2));
+    // console.log("===== END ORDERS =====");
 
     res.status(200).json(orders);
   } catch (error: any) {
@@ -50,7 +55,7 @@ export const getOrderStats = async (req: Request, res: Response) => {
     const pendingOrders = await Order.countDocuments({ status: "pending" });
     const preparingOrders = await Order.countDocuments({ status: "preparing" });
     const completedOrders = await Order.countDocuments({ status: "completed" });
-    
+
     // Calculate today's revenue
     const today = new Date();
     today.setHours(0, 0, 0, 0);

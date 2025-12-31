@@ -1,8 +1,8 @@
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface ITableBooking extends Document {
-  userId?: mongoose.Types.ObjectId; // Make optional for guest bookings
-  userEmail: string; // Use email as primary identifier
+  userId?: mongoose.Types.ObjectId; 
+  userEmail: string; 
   name: string;
   email: string;
   phone: string;
