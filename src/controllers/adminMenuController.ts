@@ -4,7 +4,7 @@ import cloudinary from "../config/cloudinary";
 
 export const saveItem = async (req: Request, res: Response) => {
   try {
-    const { title, description, price } = req.body;
+    const { title, description, price, category } = req.body;
     
     
 
@@ -34,6 +34,7 @@ export const saveItem = async (req: Request, res: Response) => {
       title,
       description,
       price,
+      category,
       imageURL
     });
 
@@ -106,7 +107,7 @@ export const deleteItem = async (req: Request, res: Response) => {
 export const updateItem = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { title, description, price } = req.body;
+    const { title, description, price, category } = req.body;
 
     // Check item exists
     const item = await Item.findById(id);
@@ -136,6 +137,7 @@ export const updateItem = async (req: Request, res: Response) => {
     item.title = title ?? item.title;
     item.description = description ?? item.description;
     item.price = price ?? item.price;
+    item.category = category ?? item.category; // Add this
     item.imageURL = imageURL;
 
     await item.save();

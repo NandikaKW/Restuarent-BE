@@ -6,6 +6,7 @@ export interface IItem extends Document {
     description: string;
     price: number;
     imageURL: string;
+    category: string; // Add this field
     createdAt: Date;
 }
 
@@ -14,6 +15,12 @@ const itemSchema = new Schema<IItem>({
     description: { type: String, required: true },
     price: { type: Number, required: true },
     imageURL: { type: String, required: false },
+    category: { 
+        type: String, 
+        required: true,
+        enum: ["pizza", "burger", "dessert", "drinks", "pasta", "snacks"], // Add this
+        default: "snacks" // Optional default
+    },
     createdAt: { type: Date, default: Date.now }
 }, { timestamps: true });
 
