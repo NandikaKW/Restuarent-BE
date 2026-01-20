@@ -3,6 +3,7 @@ import { User } from "../models/User";
 import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "secretkey";
+const ACCESS_TOKEN_EXPIRE = "15m";
 
 // SIGNUP
 export const signup = async (req: Request, res: Response) => {
@@ -86,5 +87,33 @@ export const login = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// REFRESH TOKEN
+export const refreshToken = async (req: Request, res: Response) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    return res.status(401).json({ message: "Refresh token required" });
+  }
+
+  try {
+    const decoded: any = jwt.verify(refreshToken, JWT_SECRET);
+
+    const user = await User.findById(decoded.id);
+    if (!user || user.refreshToken !== refreshToken) {
+      return res.status(403).json({ message: "Invalid refresh token" });
+    }
+
+    const newAccessToken = jwt.sign(
+      { id: user._id, role: user.role },
+      JWT_SECRET,
+      { expiresIn: ACCESS_TOKEN_EXPIRE }
+    );
+
+    res.json({ accessToken: newAccessToken });
+  } catch {
+    res.status(403).json({ message: "Invalid refresh token" });
   }
 };

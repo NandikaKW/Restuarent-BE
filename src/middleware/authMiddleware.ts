@@ -17,3 +17,14 @@ export const protect = (req: Request, res: Response, next: NextFunction) => {
     res.status(401).json({ message: "Invalid token" });
   }
 };
+
+// Role based authorization
+export const authorize = (...roles: string[]) => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const user = (req as any).user;
+    if (!roles.includes(user.role)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+    next();
+  };
+};
